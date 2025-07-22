@@ -7,7 +7,8 @@
 # Minimum signal strength level for detection.
 # Decrease if no sensor is detected
 # Increase if multiple sensors are detected
-readonly MINLEVEL="-0.5"
+readonly MINLEVEL="-0.15"
+#readonly MINLEVEL="-0.5"
 # Sensor type, default is 110 for Toyota's PMJ-107V. See rtl_433 docs for more options
 readonly SENSOR_TYPE="110"
 # Receive frequency to listen for signals, in Hz. Default is 315 MHz for Toyota sensors
@@ -33,7 +34,10 @@ parse_signal() {
     rssi="n/a"
     battery_status="n/a"
     id=$(echo "$1" | jq ".id")
+    model=$(echo "$1" | jq ".model")
     rssi=$(echo "$1" | jq ".rssi")
+    pressure_kpa=$(echo "$1" | jq ".pressure_kPa" | bc)
+    pressure_psi=$(echo "${pressure_kpa} * 0.14503" | bc)
     if [[ $(echo "$1" | jq ".battery_ok") = 1 ]]; then
         battery_status="ok"
     elif [[ $(echo "$1" | jq ".battery_ok") = 0 ]]; then
@@ -41,7 +45,7 @@ parse_signal() {
     else
         battery_status="unknown"
     fi
-    echo -e "  └─Found sensor with ID ${id}, signal strength is ${rssi}, battery is ${battery_status}"
+    echo -e "  └─ID: ${id}, Model: ${model}, Rssi:${rssi}, PSI: ${pressure_psi}, bat: ${battery_status}"
 }
 
 # declare an associative array for our formatted results, this also acts as a check for bash >4.0
@@ -53,7 +57,7 @@ bc -v > /dev/null 2>&1 || { echo -e "\e[31mbc was not found, please install it.\
 # check for jq
 jq --version > /dev/null 2>&1 || { echo -e "\e[31mjq was not found, please install it.\e[0m" >&2; exit 1; }
 
-wheels=("front left wheel" "back left wheel" "back right wheel" "front right wheel")
+wheels=("front left wheel" "back left wheel" "back right wheel" "front right wheel", "spare wheel")
 too_many_signals=false
 for wheel in "${wheels[@]}"; do
     # prompt user to place sensor at appropriate wheel and wait for input
